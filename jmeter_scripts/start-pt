@@ -1,0 +1,85 @@
+#!/bin/bash
+# start-pt
+# author yong.ma
+# version 1.0
+log() {
+  echo "`date '+%Y-%m-%d %H:%M:%S'` $1"
+}
+
+usage_and_exit(){
+  echo "usage:  `basename $0` [-d] [-T toleration_threshold] [-F frustration_threshold] "
+  echo "                 testcase [jmeter_options]"
+  echo "  e.g.  `basename $0` test1.jmx"
+  echo "        `basename $0` test1.jmx -o output/test1 -e"
+  echo "        `basename $0` -T 500 -F 1000 test1.jmx -o output/test1 -e"
+  echo ""
+  echo "  -T    the toleration threshold in milliseconds, default 500"
+  echo "  -F    the frustration threshold in milliseconds, default 1500" 
+  echo "  -d    debug mode"
+  exit $1
+}
+
+if [[ $# -eq 0 ]]; then
+  usage_and_exit 0
+fi	
+
+debug=0
+Tthreshold=500
+Fthreshold=1500
+
+while getopts ":T:F:d" OPT; do
+case $OPT in
+  T)
+    Tthreshold="$OPTARG"
+    ;;
+  F)
+    Fthreshold="$OPTARG"
+    ;;
+  d)
+    debug=1
+    ;;    
+  ?) 
+    usage_and_exit 1
+    ;;
+esac
+done
+
+log "BEGIN"
+shift $((OPTIND-1))
+testcase="$1"
+CASE="`basename "$testcase"`"
+CASE="${CASE%.*}"
+shift
+
+if [[ -z "$CASE" ]]; then
+  echo "testcase cannot be empty"	
+  echo ""
+  usage_and_exit 1
+fi
+
+echo "              testcase : $testcase"
+echo "         testcase name : $CASE"
+echo "  toleration threshold : $Tthreshold"
+echo " frustration threshold : $Fthreshold"
+echo "        jmeter options : $@"
+
+if [[ ! -d output ]]; then
+  mkdir output
+fi  
+
+# clean
+jtl_file="output/$CASE.jtl"
+rm -rf "output/$CASE"
+rm -rf "$jtl_file"
+
+jmeter -n -t "$testcase" -l "output/$CASE.jtl" \
+ -Jjmeter.reportgenerator.apdex_satisfied_threshold=$Tthreshold \
+ -Jjmeter.reportgenerator.apdex_tolerated_threshold=$Fthreshold $@
+
+log "jtl_file: $jtl_file"
+log "END"
+
+report_file="output/$CASE/index.html"
+if [[ -r "$report_file" ]]; then
+  open "$report_file"
+fi

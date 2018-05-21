@@ -1,0 +1,121 @@
+#!/bin/bash
+# pt-stat
+# author yong.ma
+# version 1.0
+log() {
+  echo "`date '+%Y-%m-%d %H:%M:%S'` $1"
+}
+
+usage_and_exit(){
+  echo "usage:  `basename $0` [-d] [-c category_column] [-l latency_column]"
+  echo "                [-s status_column] [-o ok_codes] [-x strip_milliseconds]" 
+  echo "                jtl_file"
+  echo "  e.g.  `basename $0` test.jtl"
+  echo "        `basename $0` -x1000 test.jtl"
+  echo "        `basename $0` -x1000 -o200,201 test.jtl"
+  echo "        `basename $0` -x1000 -otrue -s8 test.jtl"
+  echo ""
+  echo "  -c    the index of category column, default 3"
+  echo "  -l    the index of latency column, default 14" 
+  echo "  -s    the index of status column, default 4" 
+  echo "  -o    the list of OK status code, comma-separated, default 200" 
+  echo "  -x    ingore the head and tail records of jtl_file by strip_milliseconds, default 60000" 
+  echo "  -d    debug mode"
+  exit $1
+}
+
+if [[ $# -eq 0 ]]; then
+  usage_and_exit 0
+fi	
+
+prgdir=`dirname $0`
+debug=0
+category_column=3
+latency_column=14
+status_column=4
+ok_codes=200
+strip_milliseconds=60000
+
+while getopts ":c:l:s:o:x:d" OPT; do
+case $OPT in
+  c)
+    category_column="$OPTARG"
+    ;;
+  l)
+    latency_column="$OPTARG"
+    ;;  
+  s)
+    status_column="$OPTARG"
+    ;; 
+  o)
+    ok_codes="$OPTARG"
+    ;;     
+  x)
+    strip_milliseconds="$OPTARG"
+    ;;
+  d)
+    debug=1
+    ;;    
+  ?) 
+    usage_and_exit 1
+    ;;
+esac
+done
+
+log "BEGIN"
+shift $((OPTIND-1))
+jtl_file="$1"
+if [[ -z "$jtl_file" ]]; then
+  echo "jtl_file cannot be empty"	
+  echo ""
+  usage_and_exit 1
+fi
+
+log "calculating time range ..."
+time_a=`head -2 $jtl_file | tail -1 | awk -F ',' '{print $1}'`
+time_b=`tail -1 $jtl_file | awk -F ',' '{print $1}'`
+
+time_a=$((time_a + strip_milliseconds))
+time_b=$((time_b - strip_milliseconds))
+
+echo "  jtl_file : $jtl_file"
+echo " time_from : $time_a"
+echo "   time_to : $time_b"
+echo "  duration : $((time_b-time_a)) milliseconds"
+
+log "counting, please wait ..."
+counts="`awk -F ',' \
+ -v debug=$debug \
+ -v time_a=$time_a \
+ -v time_b=$time_b \
+ -v category_column=$category_column \
+ -v status_column=$status_column \
+ -v ok_codes=$ok_codes \
+ -f "$prgdir"/pt-count.awk $jtl_file`"
+
+status="$?"
+if [[ $status -ne 0 ]]; then
+  log "ERROR exit code: $status"	
+  exit $status
+fi	
+
+if [[ -z "$counts" ]]; then
+  log "No success records"
+  exit 2
+fi
+
+log "success records: $counts"
+log "analysing, please wait ..."
+
+sort -t',' -g -k$latency_column $jtl_file | awk \
+ -v debug=$debug \
+ -v counts="$counts" \
+ -v time_a=$time_a \
+ -v time_b=$time_b \
+ -v category_column=$category_column \
+ -v latency_column=$latency_column \
+ -v status_column=$status_column \
+ -v ok_codes=$ok_codes \
+ -f "$prgdir"/pt-stat.awk
+
+log "END"
