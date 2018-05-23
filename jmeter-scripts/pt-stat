@@ -99,8 +99,8 @@ echo "              jtl_file : $jtl_file"
 echo "             time_from : $time_a"
 echo "               time_to : $time_b"
 echo "              duration : $((time_b-time_a)) milliseconds"
-echo "  toleration threshold : $Tthreshold"
-echo " frustration threshold : $Fthreshold"
+echo "  toleration threshold : $Tthreshold milliseconds"
+echo " frustration threshold : $Fthreshold milliseconds"
 
 
 log "counting, please wait ..."

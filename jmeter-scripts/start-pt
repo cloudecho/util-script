@@ -59,8 +59,8 @@ fi
 
 echo "              testcase : $testcase"
 echo "         testcase name : $CASE"
-echo "  toleration threshold : $Tthreshold"
-echo " frustration threshold : $Fthreshold"
+echo "  toleration threshold : $Tthreshold milliseconds"
+echo " frustration threshold : $Fthreshold milliseconds"
 echo "        jmeter options : $@"
 
 if [[ ! -d output ]]; then
