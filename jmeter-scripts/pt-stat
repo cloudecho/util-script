@@ -13,7 +13,7 @@ usage_and_exit(){
   echo "                jtl_file"
   echo "  e.g.  `basename $0` test.jtl"
   echo "        `basename $0` -x1000 test.jtl"
-  echo "        `basename $0` -x1000 -T10 -F20 test.jtl"
+  echo "        `basename $0` -x1000 -e14 -T10 -F20 test.jtl"
   echo "        `basename $0` -x1000 -o200,201 test.jtl"
   echo "        `basename $0` -x1000 -otrue -s8 test.jtl"
   echo ""
