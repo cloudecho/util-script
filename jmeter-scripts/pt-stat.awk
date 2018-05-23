@@ -1,6 +1,6 @@
 # pt-stat.awk
 # author yong.ma
-# version 1.0
+# version 1.1
 BEGIN {
   FS = ",";
   max_catlen = 0;
