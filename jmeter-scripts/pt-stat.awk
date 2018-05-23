@@ -48,10 +48,19 @@ BEGIN {
   t_count[k]++;
   if(0 == index(ok_codes,$status_column)){ next;}
 
+  elapsed = $elapsed_column;
   count["-"]++;
   count[k]++;
   sum_latency["-"] += latency;
   sum_latency[k] += latency;
+
+  if (elapsed <= Tthreshold) { 
+    satisfied_count["-"]++; 
+    satisfied_count[k]++; 
+  } else if (elapsed <= Fthreshold) { 
+    tolerating_count["-"]++;
+    tolerating_count[k]++;
+  }
 
   if (min_latency["-"] < 0){
     min_latency["-"] = latency;
@@ -79,16 +88,17 @@ BEGIN {
 }
 
 END {
-  printf("\nreporting ...\n%"(max_catlen+4)"s %8s %8s %s %s %s %s %s %s\n",
-  "LABEL", "OK%", "TPS", "AVG_LATENCY", "LATENCY90%", "LATENCY95%", "LATENCY99%", "MIN_LATENCY", "MAX_LATENCY");  
+  printf("\nreporting ...\n%"(max_catlen+4)"s %8s %8s %8s %s %s %s %s %s %s\n",
+  "LABEL", "APDEX", "OK%", "TPS", "AVG_LATENCY", "LATENCY90%", "LATENCY95%", "LATENCY99%", "MIN_LATENCY", "MAX_LATENCY");  
   for (i=0; i<length(countkeys); i++) {
     k = countkeys[i];
     tps = 1000*count[k]/(time_b - time_a);
     if(count[k]) {avg_latency = sum_latency[k]/count[k];}
     ok_rate = 100*count[k]/t_count[k];
+    apdex = (satisfied_count[k] + tolerating_count[k]/2)/t_count[k]; 
 
-    printf("[ %"max_catlen"s ] %8.1f %8d %11d %10d %10d %10d %11d %11d\n",
-    k, ok_rate, tps, avg_latency, latency_90[k], latency_95[k], latency_99[k], min_latency[k], max_latency[k]);
+    printf("[ %"max_catlen"s ] %8.3f %8.3f %8d %11d %10d %10d %10d %11d %11d\n",
+    k, apdex, ok_rate, tps, avg_latency, latency_90[k], latency_95[k], latency_99[k], min_latency[k], max_latency[k]);
   }
   printf("\n")
 } 
