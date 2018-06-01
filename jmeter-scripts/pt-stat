@@ -1,7 +1,7 @@
 #!/bin/bash
 # pt-stat
 # author yong.ma
-# version 1.1
+# version 2.0
 log() {
   echo "`date '+%Y-%m-%d %H:%M:%S'` $1"
 }
@@ -69,7 +69,7 @@ case $OPT in
     ;;
   F)
     Fthreshold="$OPTARG"
-    ;;  
+    ;;     
   d)
     debug=1
     ;;    
@@ -102,32 +102,8 @@ echo "              duration : $((time_b-time_a)) milliseconds"
 echo "  toleration threshold : $Tthreshold milliseconds"
 echo " frustration threshold : $Fthreshold milliseconds"
 
-
-log "counting, please wait ..."
-counts="`awk -F ',' \
- -v debug=$debug \
- -v time_a=$time_a \
- -v time_b=$time_b \
- -v category_column=$category_column \
- -v status_column=$status_column \
- -v ok_codes=$ok_codes \
- -f "$prgdir"/pt-count.awk $jtl_file`"
-
-status="$?"
-if [[ $status -ne 0 ]]; then
-  log "ERROR exit code: $status"	
-  exit $status
-fi	
-
-if [[ -z "$counts" ]]; then
-  log "No success records"
-  exit 2
-fi
-
-log "success records: $counts"
 log "analysing, please wait ..."
-
-sort -t',' -g -k$latency_column $jtl_file | awk \
+awk -F, \
  -v debug=$debug \
  -v counts="$counts" \
  -v time_a=$time_a \
@@ -139,6 +115,7 @@ sort -t',' -g -k$latency_column $jtl_file | awk \
  -v ok_codes=$ok_codes \
  -v Tthreshold=$Tthreshold \
  -v Fthreshold=$Fthreshold \
- -f "$prgdir"/pt-stat.awk
+ -f "$prgdir"/pt-stat.awk \
+ "$jtl_file"
 
 log "END"
