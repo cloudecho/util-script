@@ -1,13 +1,28 @@
 # pt-stat.awk
 # author yong.ma
 # version 2.0
+function get_epoch(){
+  cmd = "date +%s";
+  cmd | getline d;
+  close(cmd);
+  return d;
+}
+
+BEGIN {
+  duration = time_b - time_a;
+  p0 = 0;
+  start_time = get_epoch();
+  if(debug) {print "start_time:", start_time}
+  printf("DONE: %14s","");
+}
+
 { 
   time = $1;
   k = $category_column;
   latency = $latency_column;
   if (debug && t_count["-"]==1) { 
-    print "\n"$0;
-    print "NR:"NR, "time:"time, "code:"$status_column, "latency:"latency;
+    print "\n", $0;
+    print "NR:", NR, "time:", time, "code:", $status_column, "latency:", latency;
   }
   if (NR == 1 || time < time_a || time > time_b) { next; }
 
@@ -30,9 +45,20 @@
   sum_latency[k] += latency;
   latencydict["-",latency]++;
   latencydict[k,latency]++;
+
+  p=100.0*(time - time_a)/duration;
+  if (p - p0 >= 1) {
+    p0 = p; t = get_epoch(); 
+    time_left = (100-p)*(t-start_time)/p;
+    printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b%3d%% %5ds ET", p, time_left);
+    if(debug){printf(" t:%d t-start_time:%d\n", t, t-start_time);}
+    fflush();
+  }
 }
 
 END {
+  printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b%3d%% %5ds ET", 100, 0);
+
   if(length(countdict)==0){
     print "No success records."
     exit;
@@ -61,7 +87,8 @@ END {
     split(key, arr, SUBSEP);
     k = arr[1]; latency = arr[2]+0;
     if (debug && min_latency[k] < 0) {
-      print key":"latencydict[key]" [category:'"k"', latency:"latency ", count:"latencydict[key]"]";
+      printf("%s:%d [category:%s, latency:%d, count:%d]\n",
+      key, latencydict[key], k, latency, latencydict[key]);
     }
 
     if (min_latency[k] < 0) {
@@ -76,7 +103,7 @@ END {
   printf("\nreporting ...\n%"(max_catlen+4)"s %8s %8s\n", "LABEL", "OK_COUNT", "OK_COUNT%");
   for (i=0; i<length(countkeys); i++) {
     k = countkeys[i];
-    count_rate = 100*countdict[k]/countdict["-"];
+    count_rate = 100.0*countdict[k]/countdict["-"];
     printf("[ %"max_catlen"s ] %8d %8.3f\n", k, countdict[k], count_rate);
 
     for(latency=min_latency[k]; latency<=max_latency[k]; latency++){
@@ -95,7 +122,7 @@ END {
     k = countkeys[i];
     tps = 1000*countdict[k]/(time_b - time_a);
     if(countdict[k]) {avg_latency = sum_latency[k]/countdict[k];}
-    ok_rate = 100*countdict[k]/t_count[k];
+    ok_rate = 100.0*countdict[k]/t_count[k];
     apdex = (satisfied_count[k] + tolerating_count[k]/2)/t_count[k]; 
 
     printf("[ %"max_catlen"s ] %8.3f %8.3f %8d %11d %10d %10d %10d %11d %11d\n",

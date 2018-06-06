@@ -29,6 +29,17 @@ usage_and_exit(){
   exit $1
 }
 
+epoch_to_readable_date(){
+  case "`uname`" in
+    Darwin)
+      echo "`date -r $1 +"%Y-%m-%d %H:%M:%S"`"
+      ;;
+    *)
+      echo "`date -d @$1 +"%Y-%m-%d %H:%M:%S"`"
+      ;;    
+  esac 
+}
+
 if [[ $# -eq 0 ]]; then
   usage_and_exit 0
 fi	
@@ -94,18 +105,23 @@ time_b=`tail -1 $jtl_file | awk -F ',' '{print $1}'`
 
 time_a=$((time_a + strip_milliseconds))
 time_b=$((time_b - strip_milliseconds))
+duration=$((time_b-time_a))
 
 echo "              jtl_file : $jtl_file"
-echo "             time_from : $time_a"
-echo "               time_to : $time_b"
-echo "              duration : $((time_b-time_a)) milliseconds"
+echo "             time_from : $time_a  `epoch_to_readable_date $(($time_a/1000))`"
+echo "               time_to : $time_b  `epoch_to_readable_date $(($time_b/1000))`"
+echo "              duration : $duration milliseconds"
 echo "  toleration threshold : $Tthreshold milliseconds"
 echo " frustration threshold : $Fthreshold milliseconds"
+
+if [[ $duration -le 0 ]]; then
+  echo "No records selected."
+  exit 1
+fi  
 
 log "analysing, please wait ..."
 awk -F, \
  -v debug=$debug \
- -v counts="$counts" \
  -v time_a=$time_a \
  -v time_b=$time_b \
  -v category_column=$category_column \
