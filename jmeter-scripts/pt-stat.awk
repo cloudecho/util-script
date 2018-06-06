@@ -1,6 +1,6 @@
 # pt-stat.awk
 # author yong.ma
-# version 2.0
+# version 2.1
 function get_epoch(){
   cmd = "date +%s";
   cmd | getline d;
