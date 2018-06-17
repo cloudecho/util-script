@@ -1,7 +1,7 @@
 #!/bin/bash
 # pt-stat
 # author yong.ma
-# version 2.1
+# version 3.0
 log() {
   echo "`date '+%Y-%m-%d %H:%M:%S'` $1"
 }
@@ -10,12 +10,14 @@ usage_and_exit(){
   echo "usage:  `basename $0` [-d] [-c category_column] [-e elapsed_column] [-l latency_column]"
   echo "                [-s status_column] [-o ok_codes] [-x strip_milliseconds]" 
   echo "                [-T toleration_threshold] [-F frustration_threshold]"
+  echo "                [-P parallel_number] [-L 1000*lines_per_smaller_jtl_file]"
   echo "                jtl_file"
   echo "  e.g.  `basename $0` test.jtl"
   echo "        `basename $0` -x1000 test.jtl"
   echo "        `basename $0` -x1000 -e14 -T10 -F20 test.jtl"
   echo "        `basename $0` -x1000 -o200,201 test.jtl"
   echo "        `basename $0` -x1000 -otrue -s8 test.jtl"
+  echo "        `basename $0` -x1000 -P2 -L1 test.jtl"
   echo ""
   echo "  -c    the index of category column, default 3"
   echo "  -e    the index of elapsed column, default 2"
@@ -25,6 +27,8 @@ usage_and_exit(){
   echo "  -x    ingore the head and tail records of jtl_file by strip_milliseconds, default 60000" 
   echo "  -T    the toleration threshold in milliseconds, default 500"
   echo "  -F    the frustration threshold in milliseconds, default 1500" 
+  echo "  -P    the parallel number of analysing, default 4"
+  echo "  -L    1000*L lines in per smaller jtl files, default 5000" 
   echo "  -d    debug mode"
   exit $1
 }
@@ -53,9 +57,11 @@ ok_codes=200
 strip_milliseconds=60000
 Tthreshold=500
 Fthreshold=1500
+parallel=4
+lines=5000000
 debug=0
 
-while getopts ":c:e:l:s:o:x:T:F:d" OPT; do
+while getopts ":c:e:l:s:o:x:T:F:P:L:d" OPT; do
 case $OPT in
   c)
     category_column="$OPTARG"
@@ -80,7 +86,13 @@ case $OPT in
     ;;
   F)
     Fthreshold="$OPTARG"
-    ;;     
+    ;;    
+  P)
+    parallel="$OPTARG"
+    ;;
+  L)
+    lines=$((1000*OPTARG))
+    ;;       
   d)
     debug=1
     ;;    
@@ -113,25 +125,53 @@ echo "               time_to : $time_b  `epoch_to_readable_date $(($time_b/1000)
 echo "              duration : $duration milliseconds"
 echo "  toleration threshold : $Tthreshold milliseconds"
 echo " frustration threshold : $Fthreshold milliseconds"
+echo "       parallel number : $parallel"
+echo " lines per smaller jtl : $lines"
 
 if [[ $duration -le 0 ]]; then
   echo "No records selected."
   exit 1
 fi  
 
+log "spliting jtl to smaller files"
+split_prefix="$jtl_file-split-"
+stat_prefix="${split_prefix//-split-/-stat-}"
+rm -f "$split_prefix"* "$stat_prefix"*
+split -l$lines "$jtl_file" "$split_prefix" 
+
 log "analysing, please wait ..."
-awk -F, \
+count=0
+smaller_jtl_count="`ls "$split_prefix"* |wc -l|tr -d " "`"
+ls "$split_prefix"* | while read smaller_jtl; do
+  count=$((count+1)) 
+  echo " $count/$smaller_jtl_count analysing $smaller_jtl ..."
+
+  (awk -F, \
+   -v debug=$debug \
+   -v time_a=$time_a \
+   -v time_b=$time_b \
+   -v category_column=$category_column \
+   -v elapsed_column=$elapsed_column \
+   -v latency_column=$latency_column \
+   -v status_column=$status_column \
+   -v ok_codes=$ok_codes \
+   -v Tthreshold=$Tthreshold \
+   -v Fthreshold=$Fthreshold \
+   -f "$prgdir"/pt-stat-parallel.awk \
+   "$smaller_jtl" > "${smaller_jtl//-split-/-stat-}") &
+  
+  if [ $((count%parallel)) -eq 0 -o $count -eq $smaller_jtl_count ]; then
+    wait
+  fi
+done
+
+log " summary ..."
+cat "$stat_prefix"* | awk \
  -v debug=$debug \
  -v time_a=$time_a \
  -v time_b=$time_b \
- -v category_column=$category_column \
- -v elapsed_column=$elapsed_column \
- -v latency_column=$latency_column \
- -v status_column=$status_column \
- -v ok_codes=$ok_codes \
- -v Tthreshold=$Tthreshold \
- -v Fthreshold=$Fthreshold \
- -f "$prgdir"/pt-stat.awk \
- "$jtl_file"
+ -f "$prgdir"/pt-stat.awk
 
+# clean
+rm -f "$split_prefix"* "$stat_prefix"*
 log "END"

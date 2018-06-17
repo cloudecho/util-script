@@ -1,64 +1,21 @@
 # pt-stat.awk
 # author yong.ma
-# version 2.1
-function get_epoch(){
-  cmd = "date +%s";
-  cmd | getline d;
-  close(cmd);
-  return d;
-}
-
-BEGIN {
-  duration = time_b - time_a;
-  p0 = 0;
-  start_time = get_epoch();
-  if(debug) {print "start_time:", start_time}
-  printf("DONE: %14s","");
+# version 3.0
+BEGIN { 
+  FS = "\t"
 }
 
 { 
-  time = $1;
-  k = $category_column;
-  latency = $latency_column;
-  if (debug && t_count["-"]==1) { 
-    print "\n", $0;
-    print "NR:", NR, "time:", time, "code:", $status_column, "latency:", latency;
-  }
-  if (NR == 1 || time < time_a || time > time_b) { next; }
-
-  t_count["-"]++;
-  t_count[k]++;
-  if(0 == index(ok_codes,$status_column)){ next;}
-   
-  elapsed = $elapsed_column;
-  if (elapsed <= Tthreshold) { 
-    satisfied_count["-"]++; 
-    satisfied_count[k]++; 
-  } else if (elapsed <= Fthreshold) { 
-    tolerating_count["-"]++;
-    tolerating_count[k]++;
-  }
-
-  countdict["-"]++;
-  countdict[k]++;
-  sum_latency["-"] += latency;
-  sum_latency[k] += latency;
-  latencydict["-",latency]++;
-  latencydict[k,latency]++;
-
-  p=100.0*(time - time_a)/duration;
-  if (p - p0 >= 1) {
-    p0 = p; t = get_epoch(); 
-    time_left = (100-p)*(t-start_time)/p;
-    printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b%3d%% %5ds ET", p, time_left);
-    if(debug){printf(" t:%d t-start_time:%d\n", t, t-start_time);}
-    fflush();
-  }
+  if (debug) {print "pt-stat.awk: ", $0}
+  if ($1 == "t_count") { t_count[$2] += $3; }
+  else if ($1 == "countdict") { countdict[$2] += $3; }
+  else if ($1 == "sum_latency") { sum_latency[$2] += $3; }
+  else if ($1 == "latencydict") { latencydict[$2] += $3; }
+  else if ($1 == "satisfied_count") { satisfied_count[$2] += $3; }
+  else if ($1 == "tolerating_count") { tolerating_count[$2] += $3; }
 }
 
 END {
-  printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b%3d%% %5ds ET", 100, 0);
-
   if(length(countdict)==0){
     print "No success records."
     exit;
