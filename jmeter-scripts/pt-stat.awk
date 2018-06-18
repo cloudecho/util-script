@@ -1,6 +1,6 @@
 # pt-stat.awk
 # author yong.ma
-# version 3.0
+# version 3.1
 BEGIN { 
   FS = "\t"
 }
