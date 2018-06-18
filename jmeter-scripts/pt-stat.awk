@@ -57,11 +57,12 @@ END {
     }
   }
 
-  printf("\nreporting ...\n%"(max_catlen+4)"s %8s %8s\n", "LABEL", "OK_COUNT", "OK_COUNT%");
+  printf("\nreporting ...\n%"(max_catlen+4)"s %8s %8s %8s %8s\n", "LABEL", "COUNT", "OK_COUNT", "OK%", "OK_COUNT%");
   for (i=0; i<length(countkeys); i++) {
     k = countkeys[i];
+    ok_rate = 100.0*countdict[k]/t_count[k];
     count_rate = 100.0*countdict[k]/countdict["-"];
-    printf("[ %"max_catlen"s ] %8d %8.3f\n", k, countdict[k], count_rate);
+    printf("[ %"max_catlen"s ] %8d %8d %8.3f %8.3f\n", k, t_count[k], countdict[k], ok_rate, count_rate);
 
     for(latency=min_latency[k]; latency<=max_latency[k]; latency++){
       if ((k, latency) in latencydict){
