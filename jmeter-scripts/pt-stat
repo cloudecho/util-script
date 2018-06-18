@@ -27,7 +27,7 @@ usage_and_exit(){
   echo "  -x    ingore the head and tail records of jtl_file by strip_milliseconds, default 60000" 
   echo "  -T    the toleration threshold in milliseconds, default 500"
   echo "  -F    the frustration threshold in milliseconds, default 1500" 
-  echo "  -P    the parallel number of analysing, default 4"
+  echo "  -P    the parallel number of analysing, default is the cpu cores"
   echo "  -L    1000*L lines in per smaller jtl files, default 5000" 
   echo "  -d    debug mode"
   exit $1
@@ -40,6 +40,17 @@ epoch_to_readable_date(){
       ;;
     *)
       echo "`date -d @$1 +"%Y-%m-%d %H:%M:%S"`"
+      ;;    
+  esac 
+}
+
+cpu_cores(){
+  case "`uname`" in
+    Darwin)
+      echo "`sysctl -n hw.ncpu`"
+      ;;
+    *)
+      echo "`cat /proc/cpuinfo|grep processor|wc -l|tr -d ' '`"
       ;;    
   esac 
 }
@@ -57,7 +68,7 @@ ok_codes=200
 strip_milliseconds=60000
 Tthreshold=500
 Fthreshold=1500
-parallel=4
+parallel="`cpu_cores`"
 lines=5000000
 debug=0
 
@@ -144,7 +155,7 @@ count=0
 smaller_jtl_count="`ls "$split_prefix"* |wc -l|tr -d " "`"
 ls "$split_prefix"* | while read smaller_jtl; do
   count=$((count+1)) 
-  echo " $count/$smaller_jtl_count analysing $smaller_jtl ..."
+  echo " $count/$smaller_jtl_count analysing $smaller_jtl"
 
   (awk -F, \
    -v debug=$debug \
