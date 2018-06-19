@@ -155,7 +155,7 @@ count=0
 smaller_jtl_count="`ls "$split_prefix"* |wc -l|tr -d " "`"
 ls "$split_prefix"* | while read smaller_jtl; do
   count=$((count+1)) 
-  echo " $count/$smaller_jtl_count analysing $smaller_jtl"
+  echo -ne "\r $count/$smaller_jtl_count analysing $smaller_jtl"
 
   (awk -F, \
    -v debug=$debug \
@@ -176,6 +176,7 @@ ls "$split_prefix"* | while read smaller_jtl; do
   fi
 done
 
+echo ""
 log " summary ..."
 cat "$stat_prefix"* | awk \
  -v debug=$debug \
