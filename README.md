@@ -6,6 +6,20 @@ Some util scripts.
   - pt-stat
 
 ## Usage
+### start-pt
+```
+$ ./jmeter-scripts/start-pt
+usage:  start-pt [-d] [-T toleration_threshold] [-F frustration_threshold] 
+                 testcase [jmeter_options]
+  e.g.  start-pt test1.jmx
+        start-pt test1.jmx -o output/test1 -e
+        start-pt -T 500 -F 1000 test1.jmx -o output/test1 -e
+
+  -T    the toleration threshold in milliseconds, default 500
+  -F    the frustration threshold in milliseconds, default 1500
+  -d    debug mode
+```
+
 ### pt-stat
 ```
 $ ./jmeter-scripts/pt-stat 
