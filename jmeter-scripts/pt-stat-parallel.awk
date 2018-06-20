@@ -1,6 +1,6 @@
 # pt-stat-parallel.awk
 # author yong.ma
-# version 3.1
+# version 3.2
 { 
   time = $1;
   k = $category_column;
