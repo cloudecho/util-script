@@ -1,0 +1,94 @@
+#!/bin/bash
+# make-certs
+# author yong.ma
+# see: https://stackoverflow.com/questions/38286564/docker-tls-verify-docker-host-and-docker-cert-path-on-ubuntu
+usage_and_exit(){
+  echo "usage:  `basename $0` [-d days] [-J server_subj] [-H server_ip] [-t target_dir] [-p pass_phrase]"
+  echo ""
+  echo "  e.g.  `basename $0` -J /CN=apache.org"
+  echo "        `basename $0` -J /CN=apache.org -d730"
+  echo ""
+  echo "  -d    Certs expire after the number of days, default 365"
+  echo "  -J    The server subject name, CN is mandatory, e.g. '/CN=apache.org/OU=Foundation/O=ASF/L=Wakefield/ST=Massachusetts/C=US'"
+  echo "  -H    The server ip, default 127.0.0.1"
+  echo "  -p    Pass phrase for CA key, default 'nopass'"
+  echo "  -t    The target directory which the generated certs will put into, default '.certs'"
+  exit $1
+}
+
+if [[ $# -eq 0 ]]; then
+  usage_and_exit 0
+fi	
+
+DAYS=365
+SERVER_IP="127.0.0.1"
+pass_phrase="nopass"
+target_dir=".certs"
+
+while getopts ":d:J:p:t" OPT; do
+case $OPT in
+  d)
+    DAYS="$OPTARG"
+    ;;
+  J)
+    SERVER_SUBJ="$OPTARG"
+    ;;
+  J)
+    SERVER_IP="$OPTARG"
+    ;;  
+  t)
+    target_dir="$OPTARG"
+    ;;  
+  p)
+    pass_phrase="$OPTARG"
+    ;;    
+  ?) 
+    usage_and_exit 1
+    ;;
+esac
+done
+
+# check
+if [[ -d "$target_dir" ]]; then
+  echo "$target_dir already exists, please remove it first or use another one."
+  exit 1
+fi
+
+if [[ -z "$SERVER_SUBJ" ]]; then
+  echo "The server subject name (-J) is mandaory, please provide it"
+  exit 1
+fi
+
+mkdir "$target_dir"
+chmod 700 "$target_dir" 
+cd "$target_dir"
+echo "💡 certs dir: `pwd`"
+
+echo "🌟 Setup CA ..."
+# generate a key pair for the CA
+openssl genrsa -passout pass:$pass_phrase -aes256 -out ca-key.pem 2048
+# setup CA certificate
+openssl req -passin pass:$pass_phrase -new -x509 -days $DAYS -key ca-key.pem -sha256 -out ca.pem -subj "$SERVER_SUBJ"
+
+echo "🌟 Server certificate ..."
+# generate a new host key pair
+openssl genrsa -out server-key.pem 2048
+# generate certificate signing request (CSR)
+openssl req -subj "$SERVER_SUBJ" -new -key server-key.pem -out server.csr
+# setup extfile for ip's to allow
+echo "subjectAltName = IP:$SERVER_IP, IP:127.0.0.1" > ext-file
+# sign the key by the CA
+openssl x509 -passin pass:$pass_phrase -req -days $DAYS -in server.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out server-cert.pem -extfile ext-file
+
+echo "🌟 Client certificate ..." 
+# create a client key pair
+openssl genrsa -out client-key.pem 2048
+# generate csr for client key
+openssl req -subj '/CN=client' -new -key client-key.pem -out client.csr
+# configure request to support client
+echo extendedKeyUsage = clientAuth > ext-file
+# sign the client key with the CA
+openssl x509 -passin pass:$pass_phrase -req -days $DAYS -in client.csr -CA ca.pem -CAkey ca-key.pem \
+  -CAcreateserial -out client-cert.pem -extfile ext-file
+rm ext-file
